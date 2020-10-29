@@ -1,6 +1,7 @@
 const twitterAPI = require('twit');
 const creds = require('./config')
 const twit = new twitterAPI(creds);
+const CronJob = require('cron').CronJob
 
 UserToSearch = '1308247602518020098'
 
@@ -72,4 +73,8 @@ async function compare(){
 
 }
 
-compare()
+var job = new CronJob('0 * * * * ', function(){
+    compare()
+}, null , true, 'America/Los Angeles')
+
+job.start()

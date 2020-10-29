@@ -1,45 +1,75 @@
 const twitterAPI = require('twit');
-const conf = require('./config');
-const twit = new twitterAPI(conf);
+const creds = require('./config')
+const twit = new twitterAPI(creds);
+
+UserToSearch = '1308247602518020098'
+
 
  function getList(){
+  return new Promise((resolve, reject)=>{
 //get list of users from midnightsloths
+  twit.get('followers/ids', { user_id: '1308247602518020098'}, function(err,data,res){//Twitter userId is of MidnightSloths
+      if(err){
+          reject(err)
+      }else{
+            resolve(data.ids)
+      }
+  })
+  }).catch(e=>{
+      console.log(e)
+  })
 
-twit.get('followers/list', { user_id: '1308247602518020098'}, function(err,data,res){//Twitter userId is of MidnightSloths
-    if(err){
-        console.log(err)
-        return
-    }
-    data.users.forEach(user => {
-        let rdata =  checkUserLikedTweet(user.id)
-        console.log(rdata)
-
-    });
-})
 }
 
 
 //check if they have liked a tweet
-async function  checkUserLikedTweet(userId){
-    let promise = new Promise((resolve, reject)=>{
-        twit.get('favorites/list', {user_id: userId}, async function(err,data,res){
+function  checkUserLikedTweet(userId){
+    return new Promise((resolve, reject)=>{
+        twit.get('favorites/list', {user_id:  userId.toString(), count: 20 }, function(err,data,res){
+          if(err){
+            console.log(userId, err)
+          }
+          //console.log(data)
             for(var i =0; i < data.length; i++){
-                //console.log(data[i].length)
-                if(data[i] !== 'errors'){
-                   
-                   await resolve(data[i])
-                }
+              console.log(userId , data[i].id_str)
+                resolve(data[i].user.id_str)
             }
         })
-    })
-    let result
-   promise.then((value)=>{
-       console.log(value)
-       result =  value
-   })
+      }).catch(e=>{
+        console.log(e)
+      })
+  }
 
-   return result
+//Function is not used 
+function getUsersWhoRetweets(){
+    return new Promise((resolve, reject)=>{
+    twit.get('statuses/retweeters/ids', {id: '1321143494098980866', count : 100, stringify_ids: false}, function(err, data, res){
+       if(!err){
+           resolve(data.ids)
+       }else{
+           reject(err)
+       }
+    })
+}).catch(e=>{
+    console.log(e)
+})
 }
 
 
-getList()
+async function compare(){
+
+    twitterFollowers = await getList()
+
+    UsersWhoRetweeted = await getUsersWhoRetweets()
+   // console.log( twitterFollowers)
+    for(var i =0; i < UsersWhoRetweeted.length; i++){
+        if(twitterFollowers.includes(UsersWhoRetweeted[i])){
+            console.log(`True : ${UsersWhoRetweeted[i]}`)
+        }else{
+            console.log(false)
+        }
+    }
+
+}
+
+compare()

@@ -1,46 +1,42 @@
 const twitterAPI = require('twit');
-const creds = require('./config')
+ const creds = require('./config')
+const csv = require('csv-parser')
+const createCsvWriter = require('csv-writer').createObjectCsvWriter
+const csvWriter = createCsvWriter({
+  path: 'out.csv',
+  append: true, 
+  header: [
+    {id: 'userId', title: 'UserId'},
+    {id: 'userName', title: 'UserName'},
+  ]
+})
+const fs = require('fs')
 const twit = new twitterAPI(creds);
 const CronJob = require('cron').CronJob
+const logger = require('log-to-file')
 
 UserToSearch = '1308247602518020098'
 
-
- function getList(){
+function getList(){
   return new Promise((resolve, reject)=>{
+    ids = []
 //get list of users from midnightsloths
-  twit.get('followers/ids', { user_id: '1308247602518020098'}, function(err,data,res){//Twitter userId is of MidnightSloths
+  twit.get('followers/list', { user_id: '1308247602518020098'}, function(err,data,res){//Twitter userId is of MidnightSloths
       if(err){
           reject(err)
+          logger(err)
       }else{
-            resolve(data.ids)
+            for(var i = 0; i < data.users.length; i++){ 
+              ids.push({ userId : data.users[i].id, userName : data.users[i].screen_name})
+            }
+            resolve(ids)
       }
   })
   }).catch(e=>{
       console.log(e)
+      logger(e)
   })
-
 }
-
-
-//check if they have liked a tweet
-function  checkUserLikedTweet(userId){
-    return new Promise((resolve, reject)=>{
-        twit.get('favorites/list', {user_id:  userId.toString(), count: 20 }, function(err,data,res){
-          if(err){
-            console.log(userId, err)
-          }
-          //console.log(data)
-            for(var i =0; i < data.length; i++){
-              console.log(userId , data[i].id_str)
-                resolve(data[i].user.id_str)
-            }
-        })
-      }).catch(e=>{
-        console.log(e)
-      })
-  }
-
 //Function is not used 
 function getUsersWhoRetweets(){
     return new Promise((resolve, reject)=>{
@@ -49,6 +45,7 @@ function getUsersWhoRetweets(){
            resolve(data.ids)
        }else{
            reject(err)
+           logger(err)
        }
     })
 }).catch(e=>{
@@ -58,23 +55,57 @@ function getUsersWhoRetweets(){
 
 
 async function compare(){
-
     twitterFollowers = await getList()
+    usersWhoRetweeted = await getUsersWhoRetweets()
+    usersToAdd = [] 
+    //Search through both arrays to find matching
+   for(var i =0; i < usersWhoRetweeted.length; i++){
+     for(var j = 0; j < twitterFollowers.length; j++){ 
+       if(usersWhoRetweeted[i] == twitterFollowers[j].userId){ 
+        usersToAdd.push(twitterFollowers[i])
+       }
+     }
+   }
 
-    UsersWhoRetweeted = await getUsersWhoRetweets()
-   // console.log( twitterFollowers)
-    for(var i =0; i < UsersWhoRetweeted.length; i++){
-        if(twitterFollowers.includes(UsersWhoRetweeted[i])){
-            console.log(`True : ${UsersWhoRetweeted[i]}`)
-        }else{
-            console.log(false)
-        }
-    }
-
+    //Check if user in UsersToAdd doesnt already exist in csv
+    //writeToFile(usersToAdd)
+    checkedUsers = await checkDuplicateInCsv(usersToAdd)
+    writeToFile(checkedUsers)
 }
 
-var job = new CronJob('0 * * * * ', function(){
-    compare()
-}, null , true, 'America/Los Angeles')
+function checkDuplicateInCsv(usersToAdd){
+    return new Promise((resolve, reject)=>{
+  fs.createReadStream('./out.csv')//Add file name
+    .pipe(csv())
+    .on('data', (row)=>{
+      //check if row matches any of new ids
+     for(var i=0; i < usersToAdd.length; i++){
+         //console.log(usersToAdd[i].userId , row.UserId.toString())
+        if(usersToAdd[i].userId == row.UserId){
+            console.log('Removing id')
+            usersToAdd.splice(i)
+        }
+     }
 
-job.start()
+    })
+    .on('end', ()=>{
+      console.log('end of file')
+      resolve(usersToAdd)
+    })
+})
+}
+function writeToFile(data){
+  csvWriter
+    .writeRecords(data)
+    .then(()=>{
+      console.log('Records written')
+    })
+}
+
+/*var job = new CronJob('0 * * * * ', function(){
+    compare()
+}, null , true, 'America/LosAngeles')
+
+job.start()*/
+
+compare()

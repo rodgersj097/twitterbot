@@ -8,10 +8,13 @@
   "dependencies": {
     "cookie-parser": "~1.4.4",
     "cron": "^1.8.2",
+    "csv-parser": "^2.3.3",
+    "csv-writer": "^1.6.0",
     "debug": "~2.6.9",
     "express": "~4.16.1",
     "http-errors": "~1.6.3",
     "jade": "~1.11.0",
+    "log-to-file": "^2.0.2",
     "morgan": "~1.9.1",
     "twit": "^2.2.11",
     "twit-promise": "^2.1.0"
